@@ -17,7 +17,7 @@ def create_test_pdf(filename, num_pages=100):
         num_pages: Número de páginas a criar
     """
     c = canvas.Canvas(filename, pagesize=letter)
-    width, height = letter
+    _width, height = letter
     
     for page_num in range(1, num_pages + 1):
         # Título

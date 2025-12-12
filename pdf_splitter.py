@@ -4,7 +4,7 @@ Módulo para dividir arquivos PDF em tamanhos menores.
 """
 
 import os
-from typing import List, Optional
+from typing import List
 from PyPDF2 import PdfReader, PdfWriter
 
 

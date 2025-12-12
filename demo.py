@@ -4,6 +4,7 @@ Script de demonstração do Rodovalho PDF Splitter.
 """
 
 import os
+import shlex
 import subprocess
 import sys
 
@@ -14,7 +15,7 @@ def run_command(cmd, description):
     print(f"DEMONSTRAÇÃO: {description}")
     print(f"{'='*70}")
     print(f"Comando: {cmd}\n")
-    result = subprocess.run(cmd, shell=True)
+    result = subprocess.run(shlex.split(cmd), shell=False)
     return result.returncode == 0
 
 
