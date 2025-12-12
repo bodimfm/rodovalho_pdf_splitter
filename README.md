@@ -1,5 +1,15 @@
 # Rodovalho PDF Splitter
 
+<p align="center">
+  <strong>⚖️ RODOVALHO ADVOGADOS</strong>
+</p>
+
+<p align="center">
+  <em>Desenvolvido por Calleva | RM SOFTWARES E TREINAMENTOS LTDA</em>
+</p>
+
+---
+
 Aplicação Python para dividir arquivos PDF em tamanhos menores, facilitando o protocolo de documentos grandes em sistemas jurídicos.
 
 ## Características
@@ -8,7 +18,9 @@ Aplicação Python para dividir arquivos PDF em tamanhos menores, facilitando o 
 - 📦 **Divisão por Tamanho**: Divide PDF em arquivos com tamanho máximo em MB
 - 📊 **Informações do PDF**: Visualiza informações sobre o arquivo (páginas, tamanho)
 - 🎯 **Interface Simples**: Linha de comando fácil de usar
+- 🖥️ **Interface Web**: Interface gráfica moderna via navegador
 - 📁 **Organização Automática**: Cria diretórios de saída automaticamente
+
 
 ## Instalação
 
@@ -24,6 +36,16 @@ pip install -r requirements.txt
 ```
 
 ## Uso
+
+### Interface Web (Recomendado)
+
+A forma mais fácil de usar a aplicação é através da interface web:
+
+```bash
+streamlit run app.py
+```
+
+Acesse `http://localhost:8501` no navegador para usar a interface gráfica.
 
 ### Interface de Linha de Comando (CLI)
 
@@ -114,10 +136,37 @@ Os arquivos divididos são nomeados automaticamente seguindo o padrão:
 
 - Python 3.6+
 - PyPDF2 >= 3.0.0
+- Streamlit >= 1.28.0
+
+## Estrutura do Projeto
+
+```
+rodovalho_pdf_splitter/
+├── app.py              # Interface web (Streamlit)
+├── cli.py              # Interface de linha de comando
+├── pdf_splitter.py     # Módulo principal de divisão
+├── demo.py             # Script de demonstração
+├── create_test_pdf.py  # Criador de PDF de teste
+├── public/             # Assets (logos)
+├── requirements.txt    # Dependências Python
+└── README.md           # Documentação
+```
+
+## Identidade Visual
+
+O sistema utiliza a identidade visual do escritório **RODOVALHO ADVOGADOS**:
+
+- **Azul Marinho** (#1a2744): Cor principal - transmite confiança e profissionalismo
+- **Dourado** (#c9a227): Cor de destaque - transmite sofisticação
+- **Azul Secundário** (#3d5a80): Elementos secundários
 
 ## Licença
 
 Este projeto é de código aberto.
+
+## Desenvolvido por
+
+**Calleva** | RM SOFTWARES E TREINAMENTOS LTDA
 
 ## Contribuindo
 

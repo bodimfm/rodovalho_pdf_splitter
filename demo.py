@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """
 Script de demonstração do Rodovalho PDF Splitter.
+Desenvolvido por Calleva | RM SOFTWARES E TREINAMENTOS LTDA
+Cliente: RODOVALHO ADVOGADOS
 """
 
 import os
@@ -21,10 +23,18 @@ def run_command(cmd, description):
 
 def main():
     print("""
-    ╔═══════════════════════════════════════════════════════════════════╗
-    ║                   RODOVALHO PDF SPLITTER                          ║
-    ║          Demonstração de Funcionalidades                         ║
-    ╚═══════════════════════════════════════════════════════════════════╝
+    ╔═══════════════════════════════════════════════════════════════════════╗
+    ║                                                                       ║
+    ║              ⚖️  RODOVALHO PDF SPLITTER  ⚖️                           ║
+    ║                                                                       ║
+    ║                     RODOVALHO ADVOGADOS                               ║
+    ║                                                                       ║
+    ║─────────────────────────────────────────────────────────────────────║
+    ║                                                                       ║
+    ║           Desenvolvido por CALLEVA                                    ║
+    ║           RM SOFTWARES E TREINAMENTOS LTDA                           ║
+    ║                                                                       ║
+    ╚═══════════════════════════════════════════════════════════════════════╝
     """)
     
     # Verifica se há PDF de teste
@@ -61,12 +71,21 @@ def main():
     subprocess.run('ls -lh output/', shell=True)
     
     print("""
-    ╔═══════════════════════════════════════════════════════════════════╗
-    ║                   DEMONSTRAÇÃO CONCLUÍDA!                         ║
-    ║                                                                   ║
-    ║  O Rodovalho PDF Splitter está pronto para uso.                  ║
-    ║  Consulte o README.md para mais informações.                      ║
-    ╚═══════════════════════════════════════════════════════════════════╝
+    ╔═══════════════════════════════════════════════════════════════════════╗
+    ║                                                                       ║
+    ║                   ✅ DEMONSTRAÇÃO CONCLUÍDA!                          ║
+    ║                                                                       ║
+    ║   O Rodovalho PDF Splitter está pronto para uso.                     ║
+    ║                                                                       ║
+    ║   Para usar a interface web, execute:                                 ║
+    ║   $ streamlit run app.py                                              ║
+    ║                                                                       ║
+    ║   Consulte o README.md para mais informações.                         ║
+    ║                                                                       ║
+    ║─────────────────────────────────────────────────────────────────────║
+    ║   Desenvolvido por CALLEVA | RM SOFTWARES E TREINAMENTOS LTDA        ║
+    ║   Cliente: RODOVALHO ADVOGADOS                                        ║
+    ╚═══════════════════════════════════════════════════════════════════════╝
     """)
     
     return 0

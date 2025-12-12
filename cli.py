@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """
 Interface de linha de comando para o divisor de PDF.
+Desenvolvido por Calleva | RM SOFTWARES E TREINAMENTOS LTDA
+Cliente: RODOVALHO ADVOGADOS
 """
 
 import argparse
@@ -8,9 +10,19 @@ import sys
 from pdf_splitter import PDFSplitter
 
 
+BANNER = """
+╔═══════════════════════════════════════════════════════════════════════╗
+║              ⚖️  RODOVALHO PDF SPLITTER  ⚖️                           ║
+║                     RODOVALHO ADVOGADOS                               ║
+║─────────────────────────────────────────────────────────────────────║
+║           Desenvolvido por CALLEVA                                    ║
+╚═══════════════════════════════════════════════════════════════════════╝
+"""
+
+
 def main():
     parser = argparse.ArgumentParser(
-        description='Dividir arquivos PDF em tamanhos menores',
+        description='Dividir arquivos PDF em tamanhos menores - RODOVALHO ADVOGADOS',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Exemplos de uso:
@@ -59,6 +71,9 @@ Exemplos de uso:
     
     args = parser.parse_args()
     
+    # Exibe banner
+    print(BANNER)
+    
     try:
         # Cria o divisor
         splitter = PDFSplitter(args.pdf)
@@ -66,7 +81,7 @@ Exemplos de uso:
         # Mostra informações
         info = splitter.get_info()
         print(f"\n{'='*60}")
-        print(f"INFORMAÇÕES DO PDF")
+        print(f"📄 INFORMAÇÕES DO PDF")
         print(f"{'='*60}")
         print(f"Arquivo: {info['arquivo']}")
         print(f"Total de páginas: {info['total_paginas']}")
@@ -100,11 +115,12 @@ Exemplos de uso:
         
         # Resumo
         print(f"\n{'='*60}")
-        print(f"DIVISÃO CONCLUÍDA COM SUCESSO!")
+        print(f"✅ DIVISÃO CONCLUÍDA COM SUCESSO!")
         print(f"{'='*60}")
         print(f"Total de arquivos criados: {len(files)}")
         print(f"Localização: {args.output}/")
-        print(f"{'='*60}\n")
+        print(f"{'='*60}")
+        print(f"\n📌 Desenvolvido por CALLEVA | RM SOFTWARES E TREINAMENTOS LTDA\n")
         
         return 0
         
