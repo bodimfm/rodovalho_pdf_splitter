@@ -45,3 +45,7 @@ test_pdfs/
 # Output
 output/
 split_pdfs/
+
+
+#Ignore vscode AI rules
+.github/instructions/codacy.instructions.md
