@@ -154,7 +154,7 @@ HTML_TEMPLATE = '''
                         <!-- Progresso -->
                         <div class="mt-4" id="progressSection" style="display: none;">
                             <div class="progress">
-                                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                <div class="progress-bar progress-bar-striped progress-bar-animated"
                                      id="progressBar" style="width: 0%">0%</div>
                             </div>
                             <p class="text-center mt-2" id="progressText">Processando...</p>
@@ -179,7 +179,7 @@ HTML_TEMPLATE = '''
                     <div class="card-footer text-center text-muted py-3">
                         <small>
                             <i class="bi bi-shield-check me-1"></i>
-                            Processamento seguro - seus arquivos não são armazenados
+                            Processamento seguro no servidor - seus arquivos não são armazenados
                         </small>
                     </div>
                 </div>
@@ -188,11 +188,10 @@ HTML_TEMPLATE = '''
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
     <script>
         // Dados dos tribunais
         const TRIBUNAIS = ''' + json.dumps(TRIBUNAIS_DEFAULTS, ensure_ascii=False) + ''';
-        
+
         let selectedTribunal = null;
         let selectedFile = null;
         let userPreferences = {};
@@ -216,21 +215,21 @@ HTML_TEMPLATE = '''
         function updatePreferencesUI() {
             const section = document.getElementById('savedPreferencesSection');
             const list = document.getElementById('savedPreferencesList');
-            
+
             if (Object.keys(userPreferences).length === 0) {
                 section.style.display = 'none';
                 return;
             }
-            
+
             section.style.display = 'block';
             list.innerHTML = '';
-            
+
             for (const [key, pref] of Object.entries(userPreferences)) {
                 const div = document.createElement('div');
                 div.className = 'd-flex justify-content-between align-items-center p-2 bg-white rounded mb-1';
                 div.innerHTML = `
                     <span>
-                        <strong>${pref.nome || key.toUpperCase()}</strong>: 
+                        <strong>${pref.nome || key.toUpperCase()}</strong>:
                         ${pref.max_size_mb}MB${pref.max_pages ? ', ' + pref.max_pages + ' páginas' : ''}
                     </span>
                     <button class="btn btn-sm btn-outline-danger" onclick="deletePreference('${key}')">
@@ -259,16 +258,16 @@ HTML_TEMPLATE = '''
                 alert('Selecione um tribunal primeiro');
                 return;
             }
-            
+
             const size = parseFloat(document.getElementById('customSize').value) || 5;
             const pages = parseInt(document.getElementById('customPages').value) || null;
-            
+
             userPreferences[selectedTribunal] = {
                 max_size_mb: size,
                 max_pages: pages,
                 nome: TRIBUNAIS[selectedTribunal]?.nome || selectedTribunal.toUpperCase()
             };
-            
+
             savePreferences();
             updateConfigDisplay();
             alert('Preferência salva com sucesso!');
@@ -292,7 +291,7 @@ HTML_TEMPLATE = '''
         function renderTribunais() {
             const container = document.getElementById('tribunalList');
             container.innerHTML = '';
-            
+
             for (const [key, data] of Object.entries(TRIBUNAIS)) {
                 const col = document.createElement('div');
                 col.className = 'col-6 col-md-4 col-lg-3';
@@ -313,13 +312,13 @@ HTML_TEMPLATE = '''
         // Seleciona tribunal
         function selectTribunal(key) {
             selectedTribunal = key;
-            
+
             // Atualiza visual
             document.querySelectorAll('.tribunal-card').forEach(card => {
                 card.classList.remove('selected');
             });
             document.querySelector(`[data-tribunal="${key}"]`).classList.add('selected');
-            
+
             // Mostra/esconde configurações personalizadas
             const customSettings = document.getElementById('customSettings');
             if (key === 'custom') {
@@ -327,7 +326,7 @@ HTML_TEMPLATE = '''
             } else {
                 customSettings.style.display = 'none';
             }
-            
+
             updateConfigDisplay();
             updateSplitButton();
         }
@@ -335,21 +334,21 @@ HTML_TEMPLATE = '''
         // Atualiza exibição da configuração
         function updateConfigDisplay() {
             if (!selectedTribunal) return;
-            
+
             // Pega configuração (preferência do usuário ou padrão)
             const config = userPreferences[selectedTribunal] || TRIBUNAIS[selectedTribunal];
             const configText = document.getElementById('configText');
-            
+
             let text = `<strong>${config.nome || selectedTribunal.toUpperCase()}</strong>: `;
             text += `Máximo ${config.max_size_mb} MB`;
             if (config.max_pages) {
                 text += ` ou ${config.max_pages} páginas`;
             }
-            
+
             if (userPreferences[selectedTribunal]) {
                 text += ' <span class="badge bg-success">Personalizado</span>';
             }
-            
+
             configText.innerHTML = text;
         }
 
@@ -381,22 +380,36 @@ HTML_TEMPLATE = '''
             }
         });
 
-        // Processa arquivo selecionado
+        // Processa arquivo selecionado - usa API backend para obter informações
         async function handleFile(file) {
             selectedFile = file;
             document.getElementById('fileName').textContent = file.name;
             document.getElementById('fileSize').textContent = formatFileSize(file.size);
             document.getElementById('fileInfo').style.display = 'block';
-            
-            // Conta páginas
+            document.getElementById('pageCount').textContent = 'Carregando...';
+
+            // Usa a API backend para obter informações do PDF
             try {
-                const arrayBuffer = await file.arrayBuffer();
-                const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
-                document.getElementById('pageCount').textContent = pdfDoc.getPageCount();
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const response = await fetch('/api/info', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const info = await response.json();
+                    document.getElementById('pageCount').textContent = info.pages;
+                } else {
+                    const error = await response.json();
+                    document.getElementById('pageCount').textContent = 'Erro: ' + (error.error || 'Desconhecido');
+                }
             } catch (error) {
+                console.error('Erro ao obter info:', error);
                 document.getElementById('pageCount').textContent = 'Erro';
             }
-            
+
             updateSplitButton();
         }
 
@@ -422,145 +435,87 @@ HTML_TEMPLATE = '''
             return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
         }
 
-        // Divide o PDF
+        // Divide o PDF usando a API backend
         async function splitPDF() {
             if (!selectedFile || !selectedTribunal) return;
-            
+
             const config = userPreferences[selectedTribunal] || TRIBUNAIS[selectedTribunal];
-            const maxSizeBytes = config.max_size_mb * 1024 * 1024;
-            const maxPages = config.max_pages;
-            
+
             const progressSection = document.getElementById('progressSection');
             const progressBar = document.getElementById('progressBar');
             const progressText = document.getElementById('progressText');
             const resultSection = document.getElementById('resultSection');
             const splitBtn = document.getElementById('splitBtn');
-            
+
             progressSection.style.display = 'block';
             resultSection.style.display = 'none';
             splitBtn.disabled = true;
-            
+
+            // Animação de progresso indeterminado
+            progressBar.style.width = '30%';
+            progressBar.textContent = 'Enviando...';
+            progressText.textContent = 'Enviando arquivo para o servidor...';
+
             try {
-                const arrayBuffer = await selectedFile.arrayBuffer();
-                const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
-                const totalPages = pdfDoc.getPageCount();
-                
-                const outputFiles = [];
-                let currentStart = 0;
-                let partNum = 1;
-                
-                while (currentStart < totalPages) {
-                    progressText.textContent = `Processando parte ${partNum}...`;
-                    
-                    // Determina quantas páginas incluir
-                    let currentEnd = currentStart + 1;
-                    let lastValidEnd = currentEnd;
-                    
-                    while (currentEnd <= totalPages) {
-                        // Verifica limite de páginas
-                        if (maxPages && (currentEnd - currentStart) > maxPages) {
-                            currentEnd = currentStart + maxPages;
-                            break;
-                        }
-                        
-                        // Cria PDF temporário para verificar tamanho
-                        const tempDoc = await PDFLib.PDFDocument.create();
-                        for (let i = currentStart; i < currentEnd; i++) {
-                            const [page] = await tempDoc.copyPages(pdfDoc, [i]);
-                            tempDoc.addPage(page);
-                        }
-                        
-                        const tempBytes = await tempDoc.save();
-                        
-                        if (tempBytes.length <= maxSizeBytes) {
-                            lastValidEnd = currentEnd;
-                            currentEnd++;
-                        } else {
-                            currentEnd = lastValidEnd;
-                            break;
-                        }
-                        
-                        // Atualiza progresso
-                        const progress = Math.round((currentEnd / totalPages) * 50);
-                        progressBar.style.width = progress + '%';
-                        progressBar.textContent = progress + '%';
-                    }
-                    
-                    // Garante pelo menos uma página
-                    if (currentEnd === currentStart) {
-                        currentEnd = currentStart + 1;
-                    }
-                    
-                    // Cria arquivo final desta parte
-                    const partDoc = await PDFLib.PDFDocument.create();
-                    for (let i = currentStart; i < currentEnd; i++) {
-                        const [page] = await partDoc.copyPages(pdfDoc, [i]);
-                        partDoc.addPage(page);
-                    }
-                    
-                    const partBytes = await partDoc.save();
-                    const baseName = selectedFile.name.replace('.pdf', '');
-                    const fileName = `${baseName}_parte_${String(partNum).padStart(3, '0')}_pag_${currentStart + 1}-${currentEnd}.pdf`;
-                    
-                    outputFiles.push({
-                        name: fileName,
-                        data: partBytes,
-                        pages: currentEnd - currentStart,
-                        size: partBytes.length
-                    });
-                    
-                    currentStart = currentEnd;
-                    partNum++;
+                // Prepara FormData para enviar ao servidor
+                const formData = new FormData();
+                formData.append('file', selectedFile);
+                formData.append('max_size_mb', config.max_size_mb);
+                if (config.max_pages) {
+                    formData.append('max_pages', config.max_pages);
                 }
-                
-                // Cria ZIP se houver múltiplos arquivos
+
+                progressBar.style.width = '50%';
+                progressBar.textContent = 'Processando...';
+                progressText.textContent = 'Servidor processando o PDF...';
+
+                // Envia para a API backend
+                const response = await fetch('/api/split', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Erro ao processar PDF');
+                }
+
+                progressBar.style.width = '80%';
+                progressBar.textContent = 'Baixando...';
                 progressText.textContent = 'Preparando download...';
-                progressBar.style.width = '90%';
-                progressBar.textContent = '90%';
-                
-                if (outputFiles.length === 1) {
-                    // Download direto
-                    downloadFile(outputFiles[0].data, outputFiles[0].name, 'application/pdf');
-                } else {
-                    // Cria ZIP (usando JSZip ou simples concatenação)
-                    // Por simplicidade, vamos baixar individualmente
-                    for (const file of outputFiles) {
-                        downloadFile(file.data, file.name, 'application/pdf');
-                        await new Promise(r => setTimeout(r, 500)); // Delay entre downloads
-                    }
-                }
-                
+
+                // Recebe o ZIP e faz download
+                const blob = await response.blob();
+                const baseName = selectedFile.name.replace('.pdf', '');
+                const downloadUrl = URL.createObjectURL(blob);
+
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = `${baseName}_dividido.zip`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(downloadUrl);
+
                 // Mostra resultado
                 progressBar.style.width = '100%';
                 progressBar.textContent = '100%';
-                
-                document.getElementById('filesCount').textContent = outputFiles.length;
-                document.getElementById('filesList').innerHTML = outputFiles.map(f => 
-                    `<div><i class="bi bi-file-earmark-pdf text-danger me-1"></i>${f.name} (${formatFileSize(f.size)}, ${f.pages} pág.)</div>`
-                ).join('');
-                
-                resultSection.style.display = 'block';
                 progressText.textContent = 'Concluído!';
-                
+
+                document.getElementById('filesCount').textContent = 'vários';
+                document.getElementById('filesList').innerHTML = '<div><i class="bi bi-file-earmark-zip text-warning me-1"></i>Arquivo ZIP baixado com sucesso!</div>';
+
+                resultSection.style.display = 'block';
+
             } catch (error) {
                 console.error('Erro:', error);
+                progressBar.classList.remove('progress-bar-animated');
+                progressBar.classList.add('bg-danger');
+                progressText.textContent = 'Erro: ' + error.message;
                 alert('Erro ao processar PDF: ' + error.message);
             } finally {
                 splitBtn.disabled = false;
             }
-        }
-
-        // Download de arquivo
-        function downloadFile(data, filename, mimeType) {
-            const blob = new Blob([data], { type: mimeType });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
         }
 
         // Inicialização
