@@ -14,6 +14,22 @@ from werkzeug.utils import secure_filename
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100 MB max
 
+
+@app.after_request
+def add_cors_headers(response):
+    """Adiciona headers CORS a todas as respostas."""
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    return response
+
+
+@app.route('/api/info', methods=['OPTIONS'])
+@app.route('/api/split', methods=['OPTIONS'])
+def handle_options():
+    """Trata requisições preflight OPTIONS."""
+    return '', 204
+
 # Preferências padrão por tribunal (em MB e páginas)
 TRIBUNAIS_DEFAULTS = {
     "tjsp": {"max_size_mb": 5, "max_pages": None, "nome": "TJSP - Tribunal de Justiça de SP"},
