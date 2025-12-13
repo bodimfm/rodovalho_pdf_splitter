@@ -204,7 +204,7 @@ HTML_TEMPLATE = '''
                     <div class="card-footer text-center text-muted py-3">
                         <small>
                             <i class="bi bi-shield-check me-1"></i>
-                            Processamento seguro no servidor - seus arquivos não são armazenados
+                            Processamento local no navegador - seus arquivos não são enviados
                         </small>
                     </div>
                 </div>
@@ -212,6 +212,8 @@ HTML_TEMPLATE = '''
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // Dados dos tribunais
@@ -219,6 +221,8 @@ HTML_TEMPLATE = '''
 
         let selectedTribunal = null;
         let selectedFile = null;
+        let selectedPdfDoc = null;
+        let selectedPdfPageCount = null;
         let userPreferences = {};
 
         // Carrega preferências do localStorage
@@ -405,56 +409,43 @@ HTML_TEMPLATE = '''
             }
         });
 
-        async function readErrorMessage(response) {
-            const contentType = response.headers.get('content-type') || '';
-            if (contentType.includes('application/json')) {
-                try {
-                    const data = await response.json();
-                    if (data && typeof data === 'object') {
-                        return data.error || JSON.stringify(data);
-                    }
-                } catch (_e) {
-                    // ignora e tenta texto
-                }
-            }
-
-            try {
-                const text = await response.text();
-                if (!text) return `HTTP ${response.status}`;
-                return text.length > 300 ? text.slice(0, 300) + '…' : text;
-            } catch (_e) {
-                return `HTTP ${response.status}`;
-            }
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
         }
 
-        // Processa arquivo selecionado - usa API backend para obter informações
+        function formatFileSizeMB(bytes) {
+            return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+        }
+
+        function formatPartNumber(partNum) {
+            return String(partNum).padStart(3, '0');
+        }
+
+        // Processa arquivo selecionado - processamento local no navegador
         async function handleFile(file) {
             selectedFile = file;
+            selectedPdfDoc = null;
+            selectedPdfPageCount = null;
             document.getElementById('fileName').textContent = file.name;
             document.getElementById('fileSize').textContent = formatFileSize(file.size);
             document.getElementById('fileInfo').style.display = 'block';
             document.getElementById('pageCount').textContent = 'Carregando...';
+            document.getElementById('resultSection').style.display = 'none';
 
-            // Usa a API backend para obter informações do PDF
             try {
-                const formData = new FormData();
-                formData.append('file', file);
-
-                const response = await fetch('/api/info', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                if (response.ok) {
-                    const info = await response.json();
-                    document.getElementById('pageCount').textContent = info.pages;
-                } else {
-                    const message = await readErrorMessage(response);
-                    document.getElementById('pageCount').textContent = 'Erro: ' + message;
+                if (!window.PDFLib || !window.PDFLib.PDFDocument) {
+                    throw new Error('Biblioteca PDFLib não carregou.');
                 }
+
+                const arrayBuffer = await file.arrayBuffer();
+                selectedPdfDoc = await window.PDFLib.PDFDocument.load(arrayBuffer);
+                selectedPdfPageCount = selectedPdfDoc.getPageCount();
+                document.getElementById('pageCount').textContent = selectedPdfPageCount;
             } catch (error) {
-                console.error('Erro ao obter info:', error);
-                document.getElementById('pageCount').textContent = 'Erro';
+                console.error('Erro ao ler PDF:', error);
+                document.getElementById('pageCount').textContent = 'Erro: ' + (error?.message || 'Falha ao ler o PDF');
             }
 
             updateSplitButton();
@@ -463,6 +454,8 @@ HTML_TEMPLATE = '''
         // Limpa arquivo selecionado
         function clearFile() {
             selectedFile = null;
+            selectedPdfDoc = null;
+            selectedPdfPageCount = null;
             pdfInput.value = '';
             document.getElementById('fileInfo').style.display = 'none';
             document.getElementById('resultSection').style.display = 'none';
@@ -472,19 +465,12 @@ HTML_TEMPLATE = '''
         // Atualiza estado do botão
         function updateSplitButton() {
             const btn = document.getElementById('splitBtn');
-            btn.disabled = !selectedFile || !selectedTribunal;
+            btn.disabled = !selectedFile || !selectedTribunal || !selectedPdfDoc;
         }
 
-        // Formata tamanho do arquivo
-        function formatFileSize(bytes) {
-            if (bytes < 1024) return bytes + ' B';
-            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-            return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
-        }
-
-        // Divide o PDF usando a API backend
+        // Divide o PDF localmente e gera um ZIP
         async function splitPDF() {
-            if (!selectedFile || !selectedTribunal) return;
+            if (!selectedFile || !selectedTribunal || !selectedPdfDoc) return;
 
             const config = userPreferences[selectedTribunal] || TRIBUNAIS[selectedTribunal];
 
@@ -498,43 +484,84 @@ HTML_TEMPLATE = '''
             resultSection.style.display = 'none';
             splitBtn.disabled = true;
 
-            // Animação de progresso indeterminado
-            progressBar.style.width = '30%';
-            progressBar.textContent = 'Enviando...';
-            progressText.textContent = 'Enviando arquivo para o servidor...';
+            progressBar.classList.remove('bg-danger');
+            progressBar.classList.add('progress-bar-animated');
+            progressBar.style.width = '5%';
+            progressBar.textContent = 'Iniciando...';
+            progressText.textContent = 'Preparando processamento local...';
 
             try {
-                // Prepara FormData para enviar ao servidor
-                const formData = new FormData();
-                formData.append('file', selectedFile);
-                formData.append('max_size_mb', config.max_size_mb);
-                if (config.max_pages) {
-                    formData.append('max_pages', config.max_pages);
+                if (!window.JSZip) {
+                    throw new Error('Biblioteca JSZip não carregou.');
                 }
 
-                progressBar.style.width = '50%';
-                progressBar.textContent = 'Processando...';
-                progressText.textContent = 'Servidor processando o PDF...';
+                const maxSizeBytes = Math.floor(parseFloat(config.max_size_mb || 5) * 1024 * 1024);
+                const maxPages = config.max_pages ? parseInt(config.max_pages, 10) : null;
 
-                // Envia para a API backend
-                const response = await fetch('/api/split', {
-                    method: 'POST',
-                    body: formData
+                const baseName = selectedFile.name.replace(/\\.pdf$/i, '');
+                const totalPages = selectedPdfDoc.getPageCount();
+                const zip = new window.JSZip();
+                const createdFiles = [];
+
+                let partNum = 1;
+                let currentStart = 0;
+
+                progressBar.style.width = '10%';
+                progressBar.textContent = 'Processando...';
+                progressText.textContent = 'Dividindo o PDF no navegador...';
+
+                while (currentStart < totalPages) {
+                    const partDoc = await window.PDFLib.PDFDocument.create();
+                    let currentPage = currentStart;
+                    let lastAcceptedBytes = null;
+
+                    while (currentPage < totalPages) {
+                        if (maxPages && (currentPage - currentStart) >= maxPages) break;
+
+                        const [page] = await partDoc.copyPages(selectedPdfDoc, [currentPage]);
+                        partDoc.addPage(page);
+
+                        const bytes = await partDoc.save();
+                        if (bytes.length > maxSizeBytes && currentPage > currentStart) {
+                            partDoc.removePage(partDoc.getPageCount() - 1);
+                            break;
+                        }
+
+                        lastAcceptedBytes = bytes;
+                        currentPage += 1;
+                    }
+
+                    if (!lastAcceptedBytes) {
+                        throw new Error('Falha ao gerar o PDF dividido.');
+                    }
+
+                    const filename = `${baseName}_parte_${formatPartNumber(partNum)}_pag_${currentStart + 1}-${currentPage}.pdf`;
+                    zip.file(filename, lastAcceptedBytes);
+                    createdFiles.push({ filename, sizeBytes: lastAcceptedBytes.length });
+
+                    currentStart = currentPage;
+                    partNum += 1;
+
+                    const pct = Math.min(80, Math.round((currentStart / totalPages) * 80));
+                    progressBar.style.width = `${pct}%`;
+                    progressBar.textContent = `${pct}%`;
+                    progressText.textContent = `Processando páginas... (${currentStart}/${totalPages})`;
+                }
+
+                progressBar.style.width = '85%';
+                progressBar.textContent = '85%';
+                progressText.textContent = 'Compactando arquivos em ZIP...';
+
+                const zipBlob = await zip.generateAsync({ type: 'blob' }, (metadata) => {
+                    const pct = 85 + Math.round((metadata.percent || 0) * 0.15);
+                    progressBar.style.width = `${pct}%`;
+                    progressBar.textContent = `${pct}%`;
                 });
 
-                if (!response.ok) {
-                    const message = await readErrorMessage(response);
-                    throw new Error(message || 'Erro ao processar PDF');
-                }
-
-                progressBar.style.width = '80%';
-                progressBar.textContent = 'Baixando...';
                 progressText.textContent = 'Preparando download...';
 
                 // Recebe o ZIP e faz download
-                const blob = await response.blob();
-                const baseName = selectedFile.name.replace('.pdf', '');
-                const downloadUrl = URL.createObjectURL(blob);
+                const downloadUrl = URL.createObjectURL(zipBlob);
 
                 const a = document.createElement('a');
                 a.href = downloadUrl;
@@ -549,8 +576,10 @@ HTML_TEMPLATE = '''
                 progressBar.textContent = '100%';
                 progressText.textContent = 'Concluído!';
 
-                document.getElementById('filesCount').textContent = 'vários';
-                document.getElementById('filesList').innerHTML = '<div><i class="bi bi-file-earmark-zip text-warning me-1"></i>Arquivo ZIP baixado com sucesso!</div>';
+                document.getElementById('filesCount').textContent = String(createdFiles.length);
+                document.getElementById('filesList').innerHTML = createdFiles
+                    .map((f) => `<div><i class="bi bi-file-earmark-pdf text-danger me-1"></i>${f.filename} <span class="text-muted">(${formatFileSizeMB(f.sizeBytes)})</span></div>`)
+                    .join('');
 
                 resultSection.style.display = 'block';
 
