@@ -10,9 +10,16 @@ import tempfile
 from flask import Flask, request, jsonify, send_file, render_template_string
 from PyPDF2 import PdfReader, PdfWriter
 from werkzeug.utils import secure_filename
+from werkzeug.exceptions import RequestEntityTooLarge
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100 MB max
+
+
+@app.errorhandler(RequestEntityTooLarge)
+def handle_request_entity_too_large(_error):
+    """Retorna erro amigável quando o upload excede o limite."""
+    return jsonify({'error': 'Arquivo muito grande para processar nesta hospedagem.'}), 413
 
 
 @app.after_request
@@ -24,6 +31,8 @@ def add_cors_headers(response):
     return response
 
 
+@app.route('/info', methods=['OPTIONS'])
+@app.route('/split', methods=['OPTIONS'])
 @app.route('/api/info', methods=['OPTIONS'])
 @app.route('/api/split', methods=['OPTIONS'])
 def handle_options():
@@ -396,6 +405,28 @@ HTML_TEMPLATE = '''
             }
         });
 
+        async function readErrorMessage(response) {
+            const contentType = response.headers.get('content-type') || '';
+            if (contentType.includes('application/json')) {
+                try {
+                    const data = await response.json();
+                    if (data && typeof data === 'object') {
+                        return data.error || JSON.stringify(data);
+                    }
+                } catch (_e) {
+                    // ignora e tenta texto
+                }
+            }
+
+            try {
+                const text = await response.text();
+                if (!text) return `HTTP ${response.status}`;
+                return text.length > 300 ? text.slice(0, 300) + '…' : text;
+            } catch (_e) {
+                return `HTTP ${response.status}`;
+            }
+        }
+
         // Processa arquivo selecionado - usa API backend para obter informações
         async function handleFile(file) {
             selectedFile = file;
@@ -418,8 +449,8 @@ HTML_TEMPLATE = '''
                     const info = await response.json();
                     document.getElementById('pageCount').textContent = info.pages;
                 } else {
-                    const error = await response.json();
-                    document.getElementById('pageCount').textContent = 'Erro: ' + (error.error || 'Desconhecido');
+                    const message = await readErrorMessage(response);
+                    document.getElementById('pageCount').textContent = 'Erro: ' + message;
                 }
             } catch (error) {
                 console.error('Erro ao obter info:', error);
@@ -492,8 +523,8 @@ HTML_TEMPLATE = '''
                 });
 
                 if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || 'Erro ao processar PDF');
+                    const message = await readErrorMessage(response);
+                    throw new Error(message || 'Erro ao processar PDF');
                 }
 
                 progressBar.style.width = '80%';
@@ -551,12 +582,14 @@ def index():
     return render_template_string(HTML_TEMPLATE)
 
 
+@app.route('/tribunais', methods=['GET'])
 @app.route('/api/tribunais', methods=['GET'])
 def get_tribunais():
     """Retorna lista de tribunais e suas configurações padrão."""
     return jsonify(TRIBUNAIS_DEFAULTS)
 
 
+@app.route('/info', methods=['POST'])
 @app.route('/api/info', methods=['POST'])
 def get_pdf_info():
     """Retorna informações sobre um PDF enviado."""
@@ -584,6 +617,7 @@ def get_pdf_info():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/split', methods=['POST'])
 @app.route('/api/split', methods=['POST'])
 def split_pdf():
     """Divide um PDF e retorna um ZIP com os arquivos."""
